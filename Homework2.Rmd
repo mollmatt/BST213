@@ -105,6 +105,8 @@ sapply(lbw, summary)
 
 ```
 
+<BR>
+
 ## Normality assessment
 ```{r normality assessment}
 
@@ -144,6 +146,8 @@ for(i in 1:length(quantVars)) {
 
 
 ```
+
+<BR>
 
 ## Scatterplots and correlation coefficients
 ```{r scatterpolots and correlation coefficients}
@@ -193,6 +197,8 @@ for (i in 1:length(explanVars.quant)) {
 
 ```
 
+<BR>
+
 ## Regression for HT and Race
 ```{r regression for HT and race}
 
@@ -238,6 +244,7 @@ for (i in 1:length(explanVars)) {
 
 ```
 
+<BR>
 
 ## ANOVAs
 ```{r categorical and continuous variables}
@@ -277,6 +284,8 @@ for(i in 1:length(responseVars)) {
 
 
 ```
+
+<BR>
 
 ## T-tests
 ```{r t-tests}
