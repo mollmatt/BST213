@@ -1,0 +1,410 @@
+---
+title: "BST 213 homework 1"
+author: "Matthew Moll"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+date: `r Sys.Date()`
+
+
+
+## R setup
+```{r setup}
+
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(data.table)
+library(knitr)
+library(readxl)
+library(moments)
+library(epiR)
+library(e1071)
+
+```
+
+## Load data
+```{r load data}
+
+rm(list = ls())
+lbw <- read_excel("/Users/matthewmoll/Documents/Fellowship/MPH/Fall2018/BST213_regression/homework/lbw.xls")
+
+```
+
+## Data structure
+```{r data structure}
+
+head(lbw)
+str(lbw)
+sapply(lbw, summary)
+
+
+```
+
+## Define variables
+```{r define variables}
+
+removevars <- c('id')
+
+## Define response variables
+responseVars <- c('low','bwt')
+responseVars
+
+## Define explanatory variables
+explanVars <- names(lbw)[!names(lbw) %in% c(removevars, responseVars)]
+explanVars
+
+## List of quantitative variables
+quantVars <- names(lbw[!names(lbw) %in% removevars &
+                                  sapply(lbw, function(x)
+                                      length(levels(as.factor(x)))>7)])
+quantVars
+
+
+## List of binary variables
+binVars <- names(lbw[!names(lbw) %in% removevars &
+                                sapply(lbw, function(x)
+                                    length(levels(as.factor(x)))==2)])
+binVars
+
+## List of categorical variables
+
+catVars <- names(lbw[!names(lbw) %in% c(removevars,binVars) &
+                                sapply(lbw, function(x)
+                                    length(levels(as.factor(x)))<=7 & length(levels(as.factor(x)))>1)])
+catVars
+
+
+## Get Intersection between quantVars and explanVars and responseVars
+explanVars.quant <- intersect(explanVars,quantVars)
+responseVars.quant <- intersect(responseVars,quantVars)
+
+## Get intersection between categorical and binary variables with explanatory and response vars
+explanVars.cat <- intersect(explanVars,catVars)
+explanVars.cat <- explanVars.cat[!explanVars.cat %in% c(binVars)]
+
+responseVars.cat <- intersect(responseVars, catVars)
+responseVars.cat <- responseVars.cat[!responseVars.cat %in% c(binVars)]
+
+
+## Get binary explanatory and response variables
+explanVars.bin <- intersect(explanVars, binVars)
+responseVars.bin <- intersect(responseVars, binVars)
+
+## View data ranges
+str(lbw)
+sapply(lbw, summary)
+
+```
+
+## Normality assessment
+```{r normality assessment}
+
+lbw_quant <- as.data.frame(lbw %>% select(quantVars))
+
+normalityfun <- function(dataset) {
+  print("Summary Statistics")
+  print(paste0("Mean: ", mean(dataset[,i], na.rm = T)))
+  print(paste0("Standard Deviation: ",sd(dataset[,i], na.rm = T)))
+  print(paste0("Median: ", median(dataset[,i], na.rm = T)))
+  print(paste0("Skewness: ", skewness(dataset[,i], na.rm = T)))
+  print(paste0("Kurtosis: ", e1071::kurtosis(dataset[,i], type = 2)))
+  print(paste0("Shapiro-Wilk Test: ", shapiro.test(dataset[,i])$p.value))
+  print(" ")
+  print(" ")
+  
+  qqnorm(dataset[,i], main = paste0("Normal Q-Q plot: ",names(dataset)[i]))
+  qqline(dataset[,i], col = 2)
+  
+  
+}
+
+
+
+for(i in 1:length(quantVars)) {
+  
+    print(ggplot() + 
+            geom_histogram(data = lbw, fill = "blue", alpha = 0.5, mapping = aes(x = get(quantVars[i]))) +
+                xlab(quantVars[i]) + labs(title = "Histogram")
+    
+  )
+  
+    normalityfun(lbw_quant)
+  
+}
+
+
+
+```
+
+## Scatterplots and correlation coefficients
+```{r scatterpolots and correlation coefficients}
+
+## Scatterplots and correlation coefficients
+
+for (i in 1:length(explanVars.quant)) {
+  
+  for (j in 1:length(responseVars.quant)) {
+ 
+     print(paste0("Explanatory var: ", explanVars.quant[i]))
+     print(paste0("Response var: ", responseVars.quant[j]))
+     
+     cormod <- cor.test(as.data.frame(lbw_quant)[,explanVars.quant[i]],
+                                    as.data.frame(lbw_quant)[,responseVars.quant[j]])
+     
+     print(paste0("Pearson Correlation Coefficient: ", round(cormod$estimate,5)))
+     print(paste0("p-value: ", round(cormod$p.value,5)))
+     
+     print(" ")
+     print(" ")
+  
+     print(ggplot(data = lbw_quant) + 
+             geom_point(mapping = aes(x = get(explanVars.quant[i]), 
+                                      y = get(responseVars.quant[j]))) +
+             geom_smooth(mapping = aes(x = get(explanVars.quant[i]), 
+                                       y = get(responseVars.quant[j])), method = 'lm') +
+             xlab(explanVars.quant[i]) + ylab(responseVars.quant[j]) +
+               labs(subtitle =
+                      paste0(paste0("r-value: ", round(cormod$estimate,5)),", ",
+                             paste0("p-value: ", round(cormod$p.value,5))))) 
+
+    }
+}
+
+
+
+```
+
+
+## Categorical vs. continuous variables
+```{r categorical and continuous variables}
+
+
+## Categorical versions of explanatory variables vs continuous response variables
+
+for(i in 1:length(responseVars.quant)) {
+  
+  for(j in 1:length(explanVars.cat)) {
+    
+     print(paste0("Response var: ", responseVars.quant[i]))
+     print(paste0("Explanatory var: ", explanVars.cat[j]))
+
+     anovaresult <- aov(as.formula(paste0(responseVars.quant[i],"~",explanVars.cat[j])), data = lbw)
+     
+     print(" ")
+     print(" ")
+     print(" ")
+     print(" ")
+     print(" ")
+     
+        print(ggplot(data = lbw) + geom_boxplot(mapping = aes(
+          x =get(explanVars.cat[j]), 
+          y = get(responseVars.quant[i]), 
+          group =  get(explanVars.cat[j]))) +
+                ylab(responseVars.quant[i]) +
+                xlab(explanVars.cat[j]) +
+                labs(subtitle = paste0("p-value: ",
+                                       round(summary(anovaresult)[[1]][["Pr(>F)"]][[1]],5))))
+
+          
+ 
+  }
+}
+
+
+
+```
+
+## Check normality within groups
+```{r check groupwise normality, eval = F}
+
+
+explanVars.cat
+
+lbw <- as.data.frame(lbw)
+
+
+for(g in 1:length(explanVars.cat)) {
+  
+  for(h in 1:length(levels(factor(lbw[,explanVars.cat[g]])))){
+    
+    for(i in 1:length(responseVars.quant)) {
+      
+
+  print("Summary Statistics")
+  print(paste0("Mean: ", 
+               mean(lbw[which(lbw[,explanVars.cat[g]] ==
+                                    levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                                         responseVars.quant[i]], na.rm = T)))
+  print(paste0("Standard Deviation: ",
+               sd(lbw[which(lbw[,explanVars.cat[g]] == 
+                                  levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                                        responseVars.quant[i]], na.rm = T)))
+  
+  print(paste0("Median: ", 
+               median(lbw[which(lbw[,explanVars.cat[g]] == 
+                                      levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                                          responseVars.quant[i]], na.rm = T)))
+  
+  print(paste0("Skewness: ", 
+               skewness(lbw[which(lbw[,explanVars.cat[g]] == 
+                                        levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                                            responseVars.quant[i]], na.rm = T)))
+  
+  print(paste0("Kurtosis: ", 
+               e1071::kurtosis(lbw[which(lbw[,explanVars.cat[g]] == 
+                      levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                          responseVars.quant[i]], type = 2)))
+  
+  print(paste0("Shapiro-Wilk Test: ", 
+               shapiro.test(lbw[which(lbw[,explanVars.cat[g]] == 
+                      levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                                    responseVars.quant[i]])$p.value))
+  print(" ")
+  print(" ")
+  
+  qqnorm(lbw[which(lbw[,explanVars.cat[g]] == levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                 responseVars.quant[i]], main = paste0("Normal Q-Q plot: ",names(lbw)[i]))
+  
+  qqline(lbw[which(lbw[,explanVars.cat[g]] == levels(factor(as.data.frame(lbw)[,explanVars.cat[g]]))[h]), 
+                 responseVars.quant[i]], col = 2)
+  
+
+    }
+  }
+}
+
+
+
+```
+
+
+## Pairwise comparisons
+```{r pairwise comparisons, eval = T}
+
+
+## with 3 categories, there are 3!/(2!(1!)) = 3 combinations, so bonferroni is 0.05/3
+
+comparison <- c('1 vs 2', '1 vs 3', '2 vs 3')
+comparison1 <- c(1,1,2)
+comparison2 <- c(2,3,3)
+
+lbw <- as.data.frame(lbw)
+
+for(i in 1:length(responseVars.quant)) {
+  
+     for (k in 1:length(comparison)) {
+  
+     
+       diff1 <- t.test(lbw[which(lbw[,"race"] == comparison1[k]),responseVars.quant[i]],
+                     lbw[which(lbw[,"race"] == comparison2[k]),responseVars.quant[i]])   
+     
+     
+       if(diff1$p.value < (0.05/3)) {
+         
+            print(paste0("Response var: ", responseVars.quant[i]))
+            print(paste0("Explanatory var: ", "race"))
+
+            print(comparison[k])
+            print(paste0("p-value: ", round(diff1$p.value,9)))
+    
+       }
+      
+       print(" ")
+  
+     }
+     
+}
+
+
+## with 4 categories, there are 4!/(2!(2!)) = 12/2 = 6 combinations 0.05/6. Not enough samples in group 3, so will not compare
+
+
+comparison <- c('0 vs 1', '0 vs 2', '1 vs 2')
+comparison1 <- c(0,0,1)
+comparison2 <- c(1,2,2)
+
+for(m in 1:length(responseVars.quant)) {
+  
+     for (n in 1:length(comparison)) {
+  
+     
+       diff1 <- t.test(lbw[which(lbw[,"ptl"] == comparison1[n]),responseVars.quant[m]],
+                     lbw[which(lbw[,"ptl"] == comparison2[n]),responseVars.quant[m]])   
+     
+     
+       if(diff1$p.value < (0.05/6)) {
+         
+            print(paste0("Response var: ", responseVars.quant[m]))
+            print(paste0("Explanatory var: ", "ptl"))
+
+            print(comparison[n])
+            print(paste0("p-value: ", round(diff1$p.value,9)))
+    
+       }
+      
+       print(" ")
+  
+     }
+     
+}
+
+
+
+
+
+     
+
+
+```
+
+## Two-by-two tables
+```{r two by two tables}
+
+
+## What are possible binary exposures?
+explanVars.bin
+
+## What are binary outcomes of interest?
+responseVars.bin
+
+for (n in 1:length(responseVars.bin)) {
+  
+  for (o in 1:length(explanVars.bin)) {
+    
+    exposureframe <- na.omit(as.data.frame(lbw[,c(explanVars.bin[o],responseVars.bin[n])]))
+    
+    exposuretable <- table(exposureframe[,explanVars.bin[o]], exposureframe[,responseVars.bin[n]])
+    print(paste0("Exposure: ", explanVars.bin[o]))
+    print(paste0("Outcome: ", responseVars.bin[n]))
+    print(" ")
+    print(" ")
+ 
+      
+    epitable <-  epi.2by2(dat = exposuretable, method = "cross.sectional",
+          conf.level = 0.95, units = 100, homogeneity = "breslow.day",
+         outcome = "as.columns")
+    
+    print(epitable)
+    
+    fisher <- fisher.test(exposuretable)
+    print(fisher)
+    
+}
+  
+}
+
+
+```
+
+
+## Session Info
+```{r session info}
+
+sessionInfo()
+
+```
