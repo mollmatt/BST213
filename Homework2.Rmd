@@ -113,18 +113,21 @@ sapply(lbw, summary)
 lbw_quant <- as.data.frame(lbw %>% select(quantVars))
 
 normalityfun <- function(dataset) {
-  print("Summary Statistics")
-  print(paste0("Mean: ", mean(dataset[,i], na.rm = T)))
-  print(paste0("Standard Deviation: ",sd(dataset[,i], na.rm = T)))
-  print(paste0("Median: ", median(dataset[,i], na.rm = T)))
-  print(paste0("Skewness: ", skewness(dataset[,i], na.rm = T)))
-  print(paste0("Kurtosis: ", e1071::kurtosis(dataset[,i], type = 2)))
-  print(paste0("Shapiro-Wilk Test: ", shapiro.test(dataset[,i])$p.value))
+  require(moments)
+  require(e1071)
+  
+  print(paste0("Summary Statistics: ", names(dataset)[i]))
+  print(paste0("Mean: ", mean(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Standard Deviation: ",sd(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Median: ", median(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Skewness: ", skewness(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Kurtosis: ", e1071::kurtosis(as.numeric(dataset[,i]), type = 2)))
+  print(paste0("Shapiro-Wilk Test: ", shapiro.test(as.numeric(dataset[,i]))$p.value))
   print(" ")
   print(" ")
   
-  qqnorm(dataset[,i], main = paste0("Normal Q-Q plot: ",names(dataset)[i]))
-  qqline(dataset[,i], col = 2)
+  qqnorm(as.numeric(dataset[,i]), main = paste0("Normal Q-Q plot: ",names(dataset)[i]))
+  qqline(as.numeric(dataset[,i]), col = 2)
   
   
 }
