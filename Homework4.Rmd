@@ -1,0 +1,478 @@
+---
+title: "BST 213 homework 4"
+author: "Matthew Moll"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+date: `r Sys.Date()`
+
+
+
+## R setup
+```{r setup}
+
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(data.table)
+library(knitr)
+library(readxl)
+library(moments)
+library(epiR)
+library(e1071)
+library(lsmeans)
+library(lmSupport)
+library(ppcor)
+
+```
+
+## Load data
+```{r load data}
+
+rm(list = ls())
+lbw <- read_excel("/Users/matthewmoll/Documents/Fellowship/MPH/Fall2018/BST213_regression/homework/lbw.xls")
+
+```
+
+## Data structure
+```{r data structure}
+
+head(lbw)
+str(lbw)
+sapply(lbw, summary)
+
+
+```
+
+## Define variables
+
+Note that for this homework, there are really only three explanatory and 1 response variable.
+
+<BR>
+
+The *goal* of this assignment is to compare single vs. muliple predictor models.
+
+<BR>
+
+```{r define variables}
+
+removevars <- c('id')
+
+## Define response variables
+responseVars <- c('bwt')
+responseVars
+
+## Define explanatory variables
+explanVars <- names(lbw)[grep(paste0(c("lwt","race","ht"),collapse = "|"), names(lbw), ignore.case = T)]
+explanVars
+
+## List of quantitative variables
+quantVars <- names(lbw[!names(lbw) %in% removevars &
+                                  sapply(lbw, function(x)
+                                      length(levels(as.factor(x)))>7)])
+quantVars
+
+
+## List of binary variables
+binVars <- names(lbw[!names(lbw) %in% removevars &
+                                sapply(lbw, function(x)
+                                    length(levels(as.factor(x)))==2)])
+binVars
+
+## List of categorical variables
+
+catVars <- names(lbw[!names(lbw) %in% c(removevars,binVars) &
+                                sapply(lbw, function(x)
+                                    length(levels(as.factor(x)))<=7 & length(levels(as.factor(x)))>1)])
+catVars
+
+
+## Get Intersection between quantVars and explanVars and responseVars
+explanVars.quant <- intersect(explanVars,quantVars)
+responseVars.quant <- intersect(responseVars,quantVars)
+
+## Get intersection between categorical and binary variables with explanatory and response vars
+explanVars.cat <- intersect(explanVars,catVars)
+explanVars.cat <- explanVars.cat[!explanVars.cat %in% c(binVars)]
+
+responseVars.cat <- intersect(responseVars, catVars)
+responseVars.cat <- responseVars.cat[!responseVars.cat %in% c(binVars)]
+
+
+## Get binary explanatory and response variables
+explanVars.bin <- intersect(explanVars, binVars)
+responseVars.bin <- intersect(responseVars, binVars)
+
+## View data ranges
+str(lbw)
+sapply(lbw, summary)
+
+```
+
+<BR>
+
+## Normality assessment
+```{r normality assessment}
+
+lbw_quant <- as.data.frame(lbw %>% dplyr::select(quantVars))
+
+
+normalityfun <- function(dataset) {
+  require(moments)
+  require(e1071)
+  
+  print(paste0("Summary Statistics: ", names(dataset)[i]))
+  print(paste0("Mean: ", mean(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Standard Deviation: ",sd(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Median: ", median(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Skewness: ", skewness(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Kurtosis: ", e1071::kurtosis(as.numeric(dataset[,i]), type = 2)))
+  print(paste0("Shapiro-Wilk Test: ", shapiro.test(as.numeric(dataset[,i]))$p.value))
+  print(" ")
+  print(" ")
+  
+  qqnorm(as.numeric(dataset[,i]), main = paste0("Normal Q-Q plot: ",names(dataset)[i]))
+  qqline(as.numeric(dataset[,i]), col = 2)
+  
+  
+}
+
+
+
+for(i in 1:length(quantVars)) {
+  
+    print(ggplot() + 
+            geom_histogram(data = lbw, fill = "blue", alpha = 0.5, mapping = aes(x = get(quantVars[i]))) +
+                xlab(quantVars[i]) + labs(title = "Histogram")
+    
+  )
+  
+    normalityfun(lbw_quant)
+  
+}
+
+
+
+```
+
+<BR>
+
+## Scatterplots and correlation coefficients
+```{r scatterpolots and correlation coefficients}
+
+## Scatterplots and correlation coefficients
+
+for (i in 1:length(explanVars.quant)) {
+  
+  for (j in 1:length(responseVars.quant)) {
+ 
+     print(paste0("Explanatory var: ", explanVars.quant[i]))
+     print(paste0("Response var: ", responseVars.quant[j]))
+     
+     cormod <- cor.test(as.data.frame(lbw_quant)[,explanVars.quant[i]],
+                                    as.data.frame(lbw_quant)[,responseVars.quant[j]])
+     
+     print(paste0("Pearson Correlation Coefficient: ", signif(cormod$estimate,5)))
+     print(paste0("p-value: ", signif(cormod$p.value,5)))
+     
+     print(" ")
+     print(" ")
+  
+     print(ggplot(data = lbw_quant) + 
+             geom_point(mapping = aes(x = get(explanVars.quant[i]), 
+                                      y = get(responseVars.quant[j]))) +
+             geom_smooth(mapping = aes(x = get(explanVars.quant[i]), 
+                                       y = get(responseVars.quant[j])), method = 'lm') +
+             xlab(explanVars.quant[i]) + ylab(responseVars.quant[j]) +
+               labs(subtitle =
+                      paste0(paste0("r-value: ", signif(cormod$estimate,5)),", ",
+                             paste0("p-value: ", signif(cormod$p.value,5))))) 
+     
+     ## plot residuals
+     print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = lbw_quant)) + 
+             geom_point(aes(x = .fitted, y = .resid)) + 
+             labs(title = paste0("Residuals vs fitted: ",explanVars.quant[i]))) # fitted vs residuals
+     
+    print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = lbw_quant)) + 
+            geom_histogram(aes(x = .resid)) + 
+            labs(title = paste0("Residuals histogram: ",explanVars.quant[i])))       
+     
+
+    }
+}
+
+
+
+```
+
+<BR>
+
+## Regression for HT and Race
+```{r regression for HT and race}
+
+
+for (i in 1:length(explanVars)) {
+  
+  for (j in 1:length(responseVars)) {
+ 
+     print(paste0("Explanatory var: ", explanVars[i]))
+     print(paste0("Response var: ", responseVars[j]))
+     
+     cormod <- cor.test(as.data.frame(lbw)[,explanVars[i]],
+                                    as.data.frame(lbw)[,responseVars[j]])
+     
+     print(paste0("Pearson Correlation Coefficient: ", signif(cormod$estimate,5)))
+     print(paste0("p-value: ", signif(cormod$p.value,5)))
+     
+     print(" ")
+     print(" ")
+  
+     print(ggplot(data = lbw) + 
+             geom_point(mapping = aes(x = get(explanVars[i]), 
+                                      y = get(responseVars[j]))) +
+             geom_smooth(mapping = aes(x = get(explanVars[i]), 
+                                       y = get(responseVars[j])), method = 'lm') +
+             xlab(explanVars[i]) + ylab(responseVars[j]) +
+               labs(subtitle =
+                      paste0(paste0("r-value: ", signif(cormod$estimate,5)),", ",
+                             paste0("p-value: ", signif(cormod$p.value,5))))) 
+     
+     ## plot residuals
+     print(ggplot(data = lm(get(responseVars[j])~get(explanVars[i]), data = lbw)) + 
+             geom_point(aes(x = .fitted, y = .resid)) + 
+             labs(title = paste0("Residuals vs fitted: ",explanVars[i]))) # fitted vs residuals
+     
+    print(ggplot(data = lm(get(responseVars[j])~get(explanVars[i]), data = lbw)) + 
+            geom_histogram(aes(x = .resid)) + 
+            labs(title = paste0("Residuals histogram: ",explanVars[i])))       
+     
+
+    }
+}
+
+```
+
+<BR>
+
+## ANOVAs
+```{r categorical and continuous variables}
+
+
+for(i in 1:length(responseVars)) {
+  
+  for(j in 1:length(explanVars)) {
+    
+     print(paste0("Response var: ", responseVars[i]))
+     print(paste0("Explanatory var: ", explanVars[j]))
+
+     anovaresult <- aov(as.formula(paste0(responseVars[i],"~",explanVars[j])), data = lbw)
+     
+     print(" ")
+     print(" ")
+     print(" ")
+     print(" ")
+     print(" ")
+     
+        print(ggplot(data = lbw) + geom_boxplot(mapping = aes(
+          x =get(explanVars[j]), 
+          y = get(responseVars[i]), 
+          group =  get(explanVars[j]))) +
+                ylab(responseVars[i]) +
+                xlab(explanVars[j]) +
+                labs(subtitle = paste0("p-value: ",
+                                       signif(summary(anovaresult)[[1]][["Pr(>F)"]][[1]],5))))
+
+          
+ 
+  }
+}
+
+
+
+```
+
+<BR>
+
+## T-tests
+```{r t-tests}
+
+lbw <- as.data.frame(lbw)
+
+## First test if equal or unequal variance with an F test
+f.test <- var.test(lbw[which(lbw$ht == 0),"bwt"], lbw[which(lbw$ht == 1),"bwt"], alternative = "two.sided")
+f.test
+
+## Since the variances are not different, then I can use a pooled t-test, with var.equal = TRUE
+
+diff1 <- t.test(lbw[which(lbw$ht == 0),"bwt"], lbw[which(lbw$ht == 1),"bwt"], alternative = "two.sided", var.equal = TRUE)   
+diff1
+
+
+```
+<BR>
+
+The p-value for pooled data (equal variances) was `r diff1$p.value`
+
+<BR>
+
+## Multiple predictor regression
+## Anova method
+```{r multiple predictor regression anova method}
+
+
+for(i in 1:length(responseVars)) {
+  
+    
+     print(paste0("Response var: ", responseVars[i]))
+     print(paste0("Explanatory var: ", explanVars))
+
+     anovaresult <- aov(as.formula(paste0(responseVars[i],"~",paste0(explanVars,collapse = "+"))), data = lbw)
+     
+     print(" ")
+     print(" ")
+     print(" ")
+     print(" ")
+     print(" ")
+     
+        print(ggplot(data = lbw) + geom_boxplot(mapping = aes(
+          x =get(explanVars), 
+          y = get(responseVars[i]), 
+          group =  get(explanVars))) +
+                ylab(responseVars[i]) +
+                xlab(explanVars) +
+                labs(subtitle = paste0("p-value: ",
+                                       signif(summary(anovaresult)[[1]][["Pr(>F)"]][[1]],5))))
+
+
+}
+
+
+print(anovaresult)
+summary(anovaresult)
+
+str(summary(anovaresult))
+
+```
+
+## OLS method
+```{r multiple predictor regression ols method}
+
+
+LinMod <- lm(as.formula(paste0(responseVars,"~",paste0(explanVars,collapse = "+"))), data = lbw)
+
+summary(LinMod)
+
+## Get sum of squares
+anova(LinMod)
+
+SS.residuals <- anova(LinMod)["Residuals", "Sum Sq"]
+SS.model <- sum(anova(LinMod)["Sum Sq"]) - anova(LinMod)["Residuals", "Sum Sq"]
+SS.total <- sum(anova(LinMod)["Sum Sq"])
+
+## R-squared
+summary(LinMod)$r.squared
+
+kable(data.frame(Model_SS = SS.model, Residual_SS = SS.residuals, Total_SS = SS.total))
+
+
+     ## plot residuals
+     print(ggplot(data = lm(as.formula(paste0(responseVars,"~",paste0(explanVars,collapse = "+"))), data = lbw)) + 
+             geom_point(aes(x = .fitted, y = .resid)) + 
+             labs(title = paste0("Residuals vs fitted"))) # fitted vs residuals
+     
+     print(ggplot(data = lm(as.formula(paste0(responseVars,"~",paste0(explanVars,collapse = "+"))), data = lbw)) + 
+            geom_histogram(aes(x = .resid)) + 
+            labs(title = paste0("Residuals histogram")))       
+     
+
+```
+
+## Part A
+
+**Assignment**
+
+Use Proc GLM to get the “Least Squares Means” for HT and Race in a model that includes LWT, HT, and Race.  Interpret the results.
+
+```{r LSM model}
+
+
+LinMod <- lm(as.formula(bwt~lwt+as.factor(ht)+as.factor(race)), data = lbw)
+summary(LinMod)
+
+lm.sumSquares(LinMod)
+
+lsmeans(LinMod, pairwise~ht)
+
+lsmeans(LinMod, pairwise~race, adjust = "none") # Note, there is not adjustment for multiple comparisons
+
+```
+
+## Part B
+
+b.	Use Proc Reg to run the model with LWT, HT, and Race (dummy-coded) to get standardized beta’s and partial correlations for all of the predictors.  Interpret the results.
+
+```{r linear regression coeffienct based method part b}
+
+## First show coefficients of model
+summary(LinMod)$coefficients
+
+## Now get partial correlation coefficients
+partialR <- pcor(lbw[,c(responseVars,explanVars)], method = "pearson")
+partialRtable <- rbind(sapply(partialR$estimate[,responseVars], function(x) x^2),
+      partialR$p.value[,responseVars])
+rownames(partialRtable) <- c("pcor","p-value")
+partialRtable
+
+```
+
+## Part C
+
+c. Use Proc Reg and start with a model that includes only Smoke.  Then, add to this model each of the other variables (i.e., Smoke and Lwt;  Smoke and Age; etc.) and determine their role (Confounder? Collinear variable?  Predictor?).
+
+```{r determine effect of each variable part c}
+
+## Determine effect of each variable when added to smoke as model
+
+## Create vector with variables to add in addition to smoke
+varToEval <- names(lbw)[!names(lbw) %in% c("id","smoke","bwt","low")]
+varToEval
+
+for(j in 1:length(varToEval)) {
+  
+  LinMod <- lm(as.formula(paste0("bwt~smoke+",paste0(varToEval[j],collapse = "+"))), data = lbw)
+  
+  ## Evaluate model
+  print(summary(LinMod)$coefficients)
+  print(" ")
+  print(" ")
+  
+  ## Now get partial correlation coefficients
+
+  partialR <- pcor(lbw[,c(responseVars,"smoke",varToEval[j])], method = "pearson")
+  partialRtable <- rbind(sapply(partialR$estimate[,responseVars], function(x) x^2),
+      partialR$p.value[,responseVars])
+  rownames(partialRtable) <- c("pcor","p-value")
+  print(partialRtable)
+  
+  ## Show r-squared
+  print(" ")
+  print(" ")
+  print(paste0("R-squared: ",signif(summary(LinMod)$r.squared, 4)))
+  print(" ")
+  print(" ")
+  
+}
+
+```
+
+
+## Session Info
+```{r session info}
+
+sessionInfo()
+
+```
