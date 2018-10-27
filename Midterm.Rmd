@@ -1,0 +1,469 @@
+---
+title: "BST 213 Midterm"
+author: "Matthew Moll"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+date: `r Sys.Date()`
+
+
+
+## R setup
+```{r setup}
+
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(data.table)
+library(knitr)
+library(readxl)
+library(moments)
+library(epiR)
+library(e1071)
+library(lsmeans)
+library(lmSupport)
+library(ppcor)
+library(tableone)
+library(sjPlot)
+library(stargazer)
+library(car)
+library(leaps)
+
+```
+
+## Load data
+```{r load data}
+
+rm(list = ls())
+
+## define directory
+analysisDir <- '/Users/matthewmoll/Documents/Fellowship/MPH/Fall2018/BST213_regression/homework/'
+  
+## Read in data
+cost <- read_excel("/Users/matthewmoll/Documents/Fellowship/MPH/Fall2018/BST213_regression/homework/cost.xls")
+
+```
+
+## Data structure
+```{r data structure}
+
+head(cost)
+str(cost)
+sapply(cost, summary)
+
+
+```
+
+## Define variables
+
+The goal for this assignment is to build a linear regression model using the priniciples discussed in class, and then write it into a methods and results section of a manuscript.
+
+<BR>
+
+```{r define variables}
+
+removevars <- c()
+
+## Define response variables
+responseVars <- c('outcosts2')
+responseVars
+
+## Define explanatory variables
+explanVars <- names(cost)[!names(cost) %in% c("outcosts2")]
+explanVars
+
+## List of quantitative variables
+quantVars <- names(cost[!names(cost) %in% removevars &
+                                  sapply(cost, function(x)
+                                      length(levels(as.factor(x)))>7)])
+quantVars
+
+
+## List of binary variables
+binVars <- names(cost[!names(cost) %in% removevars &
+                                sapply(cost, function(x)
+                                    length(levels(as.factor(x)))==2)])
+binVars
+
+## List of categorical variables
+
+catVars <- names(cost[!names(cost) %in% c(removevars,binVars) &
+                                sapply(cost, function(x)
+                                    length(levels(as.factor(x)))<=7 & length(levels(as.factor(x)))>1)])
+catVars
+
+
+## Get Intersection between quantVars and explanVars and responseVars
+explanVars.quant <- intersect(explanVars,quantVars)
+responseVars.quant <- intersect(responseVars,quantVars)
+
+## Get intersection between categorical and binary variables with explanatory and response vars
+explanVars.cat <- intersect(explanVars,catVars)
+explanVars.cat <- explanVars.cat[!explanVars.cat %in% c(binVars)]
+
+responseVars.cat <- intersect(responseVars, catVars)
+responseVars.cat <- responseVars.cat[!responseVars.cat %in% c(binVars)]
+
+
+## Get binary explanatory and response variables
+explanVars.bin <- intersect(explanVars, binVars)
+responseVars.bin <- intersect(responseVars, binVars)
+
+## View data ranges
+str(cost)
+sapply(cost, summary)
+
+```
+
+<BR>
+
+## Normality assessment
+```{r normality assessment}
+
+cost_quant <- as.data.frame(cost %>% dplyr::select(quantVars))
+
+
+normalityfun <- function(dataset) {
+  require(moments)
+  require(e1071)
+  
+  print(paste0("Summary Statistics: ", names(dataset)[i]))
+  print(paste0("Mean: ", mean(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Standard Deviation: ",sd(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Median: ", median(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Skewness: ", skewness(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Kurtosis: ", e1071::kurtosis(as.numeric(dataset[,i]), type = 2)))
+  print(paste0("Shapiro-Wilk Test: ", shapiro.test(as.numeric(dataset[,i]))$p.value))
+  print(" ")
+  print(" ")
+  
+  qqnorm(as.numeric(dataset[,i]), main = paste0("Normal Q-Q plot: ",names(dataset)[i]))
+  qqline(as.numeric(dataset[,i]), col = 2)
+  
+  
+}
+
+
+
+for(i in 1:length(quantVars)) {
+  
+    print(ggplot() + 
+            geom_histogram(data = cost_quant, fill = "blue", alpha = 0.5, mapping = 
+                             aes(x = get(quantVars[i]))) +
+                xlab(quantVars[i]) + labs(title = "Histogram")
+    
+  )
+  
+    normalityfun(cost_quant)
+  
+}
+
+
+
+```
+
+<BR>
+
+The only variable that looks close to normal is patient age, which we may be able to use parametric testing by invoking the central limit theorem. Otherwise, we will report median and interquartile ranges.
+
+<BR>
+
+## Missingness
+```{r missingness}
+
+## assess for and remove > 10% missingness
+## Set threshold
+thr <- 0.1*length(cost$outcosts2)
+
+sapply(cost, function(x) ifelse(sum(is.na(x)) > thr, 1, 0))
+
+sapply(cost,function(x) sum(is.na(x)))
+
+## Create complete dataset of phenotypic variables
+cost <- na.omit(cost)
+
+```
+
+No variables were removed for missingness. However, ssi has the greatest missingness.
+
+## Table 1: Demographics
+```{r table 1}
+
+## Add labels to table
+
+labelled::var_label(cost$outcosts2) <- "Outpatient costs ($)"
+labelled::var_label(cost$ptage) <- "Age in years"
+labelled::var_label(cost$ssi) <- "Somatic Symptom Index (No. (%))"
+labelled::var_label(cost$panic) <- "Panic (No. (%))"
+labelled::var_label(cost$anxiety) <- "Anxiety (No. (%))"
+labelled::var_label(cost$married) <- "Married (No. (%))"
+labelled::var_label(cost$female) <- "Female (No. (%))"
+labelled::var_label(cost$educat) <- "Education Level (No. (%))"
+labelled::var_label(cost$iadl) <- "IADL score"
+labelled::var_label(cost$social) <- "Social Activities Score"
+labelled::var_label(cost$racecat) <- "Race (No. (%))"
+labelled::var_label(cost$whiteleycat) <- "Whiteley Category"
+labelled::var_label(cost$charlson) <- "Charlson index"
+labelled::var_label(cost$depcat) <- "Depression Category (No. (%))"
+
+
+
+
+## Group variables
+
+demovars <- names(cost)
+demovars
+
+varsToFactor <- c(catVars, binVars) 
+
+nonNormalVars <- names(cost_quant)[!names(cost_quant) %in% c("ptage")]
+
+## Table one
+
+tableOne <- CreateTableOne(vars = demovars, data = cost, factorVars = varsToFactor, testNonNormal = nonNormalVars)
+tableOne
+
+## Save as csv and word document
+tableOne_out <- print(tableOne,quote = FALSE, noSpaces = TRUE, printToggle = FALSE, varLabel = TRUE, nonnormal = nonNormalVars)
+
+
+write.csv(tableOne_out, file = paste0(analysisDir,"TableOne.csv"))
+tableOne_out <- fread(paste0(analysisDir, "TableOne.csv"))
+
+colnames(tableOne_out) <- c("","")
+
+tab_df(tableOne_out, file = paste0(analysisDir, "TableOne.doc"))
+
+
+```
+
+
+## Scatterplots and correlation coefficients
+```{r scatterpolots and correlation coefficients}
+
+## Scatterplots and correlation coefficients
+
+for (i in 1:length(explanVars.quant)) {
+  
+  for (j in 1:length(responseVars.quant)) {
+ 
+     print(paste0("Explanatory var: ", explanVars.quant[i]))
+     print(paste0("Response var: ", responseVars.quant[j]))
+     
+     cormod <- cor.test(as.data.frame(cost_quant)[,explanVars.quant[i]],
+                                    as.data.frame(cost_quant)[,responseVars.quant[j]])
+     
+     print(paste0("Pearson Correlation Coefficient: ", signif(cormod$estimate,5)))
+     print(paste0("p-value: ", signif(cormod$p.value,5)))
+     
+     print(" ")
+     print(" ")
+  
+     print(ggplot(data = cost_quant) + 
+             geom_point(mapping = aes(x = get(explanVars.quant[i]), 
+                                      y = get(responseVars.quant[j]))) +
+             geom_smooth(mapping = aes(x = get(explanVars.quant[i]), 
+                                       y = get(responseVars.quant[j])), method = 'lm') +
+             xlab(explanVars.quant[i]) + ylab(responseVars.quant[j]) +
+               labs(subtitle =
+                      paste0(paste0("r-value: ", signif(cormod$estimate,5)),", ",
+                             paste0("p-value: ", signif(cormod$p.value,5))))) 
+     
+     ## plot residuals
+     print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost_quant)) + 
+             geom_point(aes(x = .fitted, y = .resid)) + 
+             labs(title = paste0("Residuals vs fitted: ",explanVars.quant[i]))) # fitted vs residuals
+     
+    print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost_quant)) + 
+            geom_histogram(aes(x = .resid)) + 
+            labs(title = paste0("Residuals histogram: ",explanVars.quant[i])))       
+     
+
+    }
+}
+
+
+
+```
+
+<BR>
+
+
+## Variable selection
+```{r variable selection}
+
+
+# 
+# FS <- regsubsets(as.formula(LinEq), data = cost, method = "forward", force.in = c("depcat","charlson"))
+# 
+# str(summary(FS))
+# str(FS)
+# 
+# summary(FS)$rss
+
+null <- lm(outcosts2~1, data = cost)
+full <- lm(outcosts2~., data = cost)
+
+FS <- step(null, scope=list(lower=null, upper=full), direction="forward")
+
+## View best model
+summary(FS)
+
+## Create vector of selected variables
+selectedVars <- rownames(summary(FS)$coefficients)
+selectedVars <- selectedVars[!selectedVars %in% c("(Intercept)")]
+selectedVars
+
+summary(FS)$coefficients
+
+```
+
+## Multicollinearity: variance inflation factors
+```{r VIF}
+
+LinEq <- paste0("outcosts2~",paste0(selectedVars, collapse = "+"))
+LinEq
+
+LinMod <- lm(as.formula(LinEq), data = cost)
+summary(LinMod)
+
+vif(LinMod)
+
+## Remove if VIF > 10 - none in this case
+
+## Now create table for adjusted coefficients
+coefTable <- 
+  data.frame(
+    variable = 
+      rownames(summary(LinMod)$coefficients)[2:length(summary(LinMod)$coefficients[,1])], 
+    coefficient = 
+      as.numeric(summary(LinMod)$coefficients[2:length(summary(LinMod)$coefficients[,1]),1]), 
+    LCI = 
+      as.numeric(confint(LinMod)[2:length(summary(LinMod)$coefficients[,1]),1]), 
+    UCI = as.numeric(confint(LinMod)[2:length(summary(LinMod)$coefficients[,1]),2]), 
+    pvalue = 
+               signif(as.numeric(summary(LinMod)$coefficients[2:length(summary(LinMod)$coefficients[,1]),4]),9))
+
+kable(coefTable)
+
+```
+
+## Univariate OLS
+```{r univariate OLS}
+
+
+coefTable.uni <- data.frame(variable = character(),coefficient = numeric(), LCI = numeric(), UCI = numeric(), pvalue = numeric())
+
+for(i in 1:length(selectedVars)) {
+  
+  
+  LinEq.uni <- paste0("outcosts2~",selectedVars[i])
+  LinEq.uni
+
+  LinMod.uni <- lm(as.formula(LinEq.uni), data = cost)
+
+  coefTable.uni <- rbind(coefTable.uni, data.frame(variable = selectedVars[i], 
+                            coefficient = as.numeric(summary(LinMod.uni)$coefficients[2,1]), 
+                            LCI = confint(LinMod.uni)[2,1], 
+                            UCI = confint(LinMod.uni)[2,2], 
+                            pvalue = signif(summary(LinMod.uni)$coefficients[2,4], 9)
+                       ))
+
+}
+
+
+kable(coefTable.uni)
+
+```
+
+## Table 2: coefficients
+```{r table 2 coefficients}
+
+table2 <- bind_cols(coefTable.uni,coefTable)
+table2 <- as.data.frame(sapply(table2 %>% dplyr::select(-variable,-variable1), function(x) signif(x, 5)))
+kable(table2)
+
+
+## if p < 0.0001
+table2[,c("pvalue","pvalue1")] <- sapply(table2[,c("pvalue","pvalue1")], function(x) ifelse(x < 0.0001, "< 0.0001",x))
+
+
+## Create vector rownames and extract labels
+variableNames <- selectedVars
+
+variableNameLabels <- vector(length = length(variableNames))
+
+for(y in 1:length(variableNameLabels)) {
+  
+  variableNameLabels[y] <- labelled::var_label(cost[,variableNames[y]])
+}
+
+
+## Collapse 95% CIs into cell with hazard ratios
+
+table2 <- table2 %>% mutate(variable = variableNameLabels, 
+                       Coef1 = paste0(coefficient," (",LCI,",",UCI,")"), 
+                       Coef2 = paste0(coefficient1," (",LCI1,",",UCI1,")")) %>% dplyr::select(variable,Coef1,pvalue,Coef2,pvalue1)
+
+colnames(table2) <- c("Variable", "Unadjusted Coefficient (95% CI)","p-value","Adjusted Coefficient (95% CI)","p-value")
+
+kable(table2)
+
+tab_df(table2, file = paste0(analysisDir,"Table2.doc"))
+
+
+```
+
+
+## Effect modification
+```{r effect modification}
+
+## Evaluate for effect modification by adding an interaction term
+cost <- cost %>% mutate(chdep = charlson*depcat)
+labelled::var_label(cost$chdep) <- 'Charlson*Depression Category Interaction Term' # label this new term
+
+## Retrain the model with the new interaction term
+LinEq <- paste0("outcosts2~",paste0(c(selectedVars,"chdep"), collapse = "+"))
+LinEq
+
+LinMod <- lm(as.formula(LinEq), data = cost)
+summary(LinMod)
+
+vif(LinMod)
+
+
+ggplot(data = cost[,c("outcosts2",selectedVars)], 
+       aes(x = charlson, y = outcosts2,group = as.factor(depcat), color = as.factor(depcat))) + 
+  geom_smooth(method = 'lm') + 
+  ggtitle(" ") + xlab("Charlson Index") + ylab("Outpatient Costs") + 
+  labs(color = "Depression \nCategory\n") + 
+  scale_color_manual(labels = c("None","Minor","Major"), values = c("red","blue","dark green"))
+  
+## Save file
+pdf(paste0(analysisDir,"Figure1.pdf"))
+
+ggplot(data = cost[,c("outcosts2",selectedVars)], 
+       aes(x = charlson, y = outcosts2,group = as.factor(depcat), color = as.factor(depcat))) + 
+  geom_smooth(method = 'lm') + 
+  ggtitle(" ") + xlab("Charlson Index") + ylab("Outpatient Costs") + 
+  labs(color = "Depression \nCategory\n") + 
+  scale_color_manual(labels = c("None","Minor","Major"), values = c("red","blue","dark green"))
+ 
+
+dev.off()
+
+```
+
+
+
+
+## Session Info
+```{r session info}
+
+sessionInfo()
+
+```
