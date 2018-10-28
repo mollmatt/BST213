@@ -15,7 +15,7 @@ date: `r Sys.Date()`
 ```{r setup}
 
 
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 9, fig.height = 9)
 
 library(tidyverse)
 library(data.table)
@@ -254,16 +254,17 @@ for (i in 1:length(explanVars.quant)) {
      print(paste0("Explanatory var: ", explanVars.quant[i]))
      print(paste0("Response var: ", responseVars.quant[j]))
      
-     cormod <- cor.test(as.data.frame(cost_quant)[,explanVars.quant[i]],
-                                    as.data.frame(cost_quant)[,responseVars.quant[j]])
+     cormod <- cor.test(as.data.frame(cost)[,explanVars.quant[i]],
+                                    as.data.frame(cost)[,responseVars.quant[j]], 
+                        method = "spearman")
      
-     print(paste0("Pearson Correlation Coefficient: ", signif(cormod$estimate,5)))
+     print(paste0("Spearman Correlation Coefficient: ", signif(cormod$estimate,5)))
      print(paste0("p-value: ", signif(cormod$p.value,5)))
      
      print(" ")
      print(" ")
   
-     print(ggplot(data = cost_quant) + 
+     print(ggplot(data = cost) + 
              geom_point(mapping = aes(x = get(explanVars.quant[i]), 
                                       y = get(responseVars.quant[j]))) +
              geom_smooth(mapping = aes(x = get(explanVars.quant[i]), 
@@ -274,11 +275,11 @@ for (i in 1:length(explanVars.quant)) {
                              paste0("p-value: ", signif(cormod$p.value,5))))) 
      
      ## plot residuals
-     print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost_quant)) + 
+     print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost)) + 
              geom_point(aes(x = .fitted, y = .resid)) + 
              labs(title = paste0("Residuals vs fitted: ",explanVars.quant[i]))) # fitted vs residuals
      
-    print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost_quant)) + 
+    print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost)) + 
             geom_histogram(aes(x = .resid)) + 
             labs(title = paste0("Residuals histogram: ",explanVars.quant[i])))       
      
@@ -293,6 +294,56 @@ for (i in 1:length(explanVars.quant)) {
 <BR>
 
 
+## All vars: Scatterplots and correlation coefficients
+```{r scatterpolots and correlation coefficients for all vars}
+
+## Scatterplots and correlation coefficients
+
+for (i in 1:length(explanVars)) {
+  
+  for (j in 1:length(responseVars.quant)) {
+ 
+     print(paste0("Explanatory var: ", explanVars[i]))
+     print(paste0("Response var: ", responseVars.quant[j]))
+     
+     cormod <- cor.test(as.data.frame(cost)[,explanVars[i]],
+                                    as.data.frame(cost)[,responseVars.quant[j]], 
+                        method = "spearman")
+     
+     print(paste0("Spearman Correlation Coefficient: ", signif(cormod$estimate,5)))
+     print(paste0("p-value: ", signif(cormod$p.value,5)))
+     
+     print(" ")
+     print(" ")
+  
+     print(ggplot(data = cost) + 
+             geom_point(mapping = aes(x = get(explanVars[i]), 
+                                      y = get(responseVars.quant[j]))) +
+             geom_smooth(mapping = aes(x = get(explanVars[i]), 
+                                       y = get(responseVars.quant[j])), method = 'lm') +
+             xlab(explanVars[i]) + ylab(responseVars.quant[j]) +
+               labs(subtitle =
+                      paste0(paste0("r-value: ", signif(cormod$estimate,5)),", ",
+                             paste0("p-value: ", signif(cormod$p.value,5))))) 
+     
+     ## plot residuals
+     print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars[i]), data = cost)) + 
+             geom_point(aes(x = .fitted, y = .resid)) + 
+             labs(title = paste0("Residuals vs fitted: ",explanVars[i]))) # fitted vs residuals
+     
+    print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars[i]), data = cost)) + 
+            geom_histogram(aes(x = .resid)) + 
+            labs(title = paste0("Residuals histogram: ",explanVars[i])))       
+     
+
+    }
+}
+
+
+
+```
+
+
 ## Variable selection
 ```{r variable selection}
 
@@ -304,6 +355,8 @@ for (i in 1:length(explanVars.quant)) {
 # str(FS)
 # 
 # summary(FS)$rss
+
+set.seed(123)
 
 null <- lm(outcosts2~1, data = cost)
 full <- lm(outcosts2~., data = cost)
@@ -319,6 +372,13 @@ selectedVars <- selectedVars[!selectedVars %in% c("(Intercept)")]
 selectedVars
 
 summary(FS)$coefficients
+
+
+## do by p-value
+# OLS.Mod <- paste0("outcosts2~depcat+charlson+",paste0(names(cost)[!names(cost) %in% c("charlson","depcat","outcosts2")], collapse = "+"))
+# OLS <- ols(as.formula(OLS.Mod), data = cost)
+# 
+# FS.p <- fastbw(OLS, rule = "p", sls = 0.05, force = 4)
 
 ```
 
@@ -349,6 +409,18 @@ coefTable <-
                signif(as.numeric(summary(LinMod)$coefficients[2:length(summary(LinMod)$coefficients[,1]),4]),9))
 
 kable(coefTable)
+
+
+## Now remove SSI which is likely an intermediary variable
+
+LinEq.int <- paste0("outcosts2~",paste0(selectedVars[!selectedVars %in% c("ssi")], collapse = "+"))
+LinEq.int
+
+LinMod.int <- lm(as.formula(LinEq), data = cost)
+summary(LinMod)
+
+vif(LinMod.int)
+
 
 ```
 
@@ -427,7 +499,7 @@ cost <- cost %>% mutate(chdep = charlson*depcat)
 labelled::var_label(cost$chdep) <- 'Charlson*Depression Category Interaction Term' # label this new term
 
 ## Retrain the model with the new interaction term
-LinEq <- paste0("outcosts2~",paste0(c(selectedVars,"chdep"), collapse = "+"))
+LinEq <- paste0("outcosts2~",paste0(c(selectedVars[!selectedVars %in% c("ssi")],"chdep"), collapse = "+"))
 LinEq
 
 LinMod <- lm(as.formula(LinEq), data = cost)
@@ -435,13 +507,20 @@ summary(LinMod)
 
 vif(LinMod)
 
+```
+
+
+## Figure 1: plot of outpatient costs vs. depression category grouped by depression category
+```{r figure 1}
+
+## plot line of best fit for outpatient costs vs charlson grouped by depression category
 
 ggplot(data = cost[,c("outcosts2",selectedVars)], 
        aes(x = charlson, y = outcosts2,group = as.factor(depcat), color = as.factor(depcat))) + 
   geom_smooth(method = 'lm') + 
   ggtitle(" ") + xlab("Charlson Index") + ylab("Outpatient Costs") + 
   labs(color = "Depression \nCategory\n") + 
-  scale_color_manual(labels = c("None","Minor","Major"), values = c("red","blue","dark green"))
+  scale_color_manual(labels = c("Major","Minor","None"), values = c("red","blue","dark green"))
   
 ## Save file
 pdf(paste0(analysisDir,"Figure1.pdf"))
@@ -451,7 +530,7 @@ ggplot(data = cost[,c("outcosts2",selectedVars)],
   geom_smooth(method = 'lm') + 
   ggtitle(" ") + xlab("Charlson Index") + ylab("Outpatient Costs") + 
   labs(color = "Depression \nCategory\n") + 
-  scale_color_manual(labels = c("None","Minor","Major"), values = c("red","blue","dark green"))
+  scale_color_manual(labels = c("Major","Minor","None"), values = c("red","blue","dark green"))
  
 
 dev.off()
