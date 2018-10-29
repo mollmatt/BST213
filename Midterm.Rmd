@@ -117,6 +117,11 @@ responseVars.bin <- intersect(responseVars, binVars)
 str(cost)
 sapply(cost, summary)
 
+## turn binary and category variables into factors
+varsToFactor <- c(catVars, binVars) 
+
+cost[,varsToFactor] <- sapply(cost[,varsToFactor],as.factor)
+
 ```
 
 <BR>
@@ -299,14 +304,14 @@ for (i in 1:length(explanVars.quant)) {
 
 ## Scatterplots and correlation coefficients
 
-for (i in 1:length(explanVars)) {
+for (i in 1:length(explanVars.quant)) {
   
   for (j in 1:length(responseVars.quant)) {
  
-     print(paste0("Explanatory var: ", explanVars[i]))
+     print(paste0("Explanatory var: ", explanVars.quant[i]))
      print(paste0("Response var: ", responseVars.quant[j]))
      
-     cormod <- cor.test(as.data.frame(cost)[,explanVars[i]],
+     cormod <- cor.test(as.data.frame(cost)[,explanVars.quant[i]],
                                     as.data.frame(cost)[,responseVars.quant[j]], 
                         method = "spearman")
      
@@ -317,23 +322,23 @@ for (i in 1:length(explanVars)) {
      print(" ")
   
      print(ggplot(data = cost) + 
-             geom_point(mapping = aes(x = get(explanVars[i]), 
+             geom_point(mapping = aes(x = get(explanVars.quant[i]), 
                                       y = get(responseVars.quant[j]))) +
-             geom_smooth(mapping = aes(x = get(explanVars[i]), 
+             geom_smooth(mapping = aes(x = get(explanVars.quant[i]), 
                                        y = get(responseVars.quant[j])), method = 'lm') +
-             xlab(explanVars[i]) + ylab(responseVars.quant[j]) +
+             xlab(explanVars.quant[i]) + ylab(responseVars.quant[j]) +
                labs(subtitle =
                       paste0(paste0("r-value: ", signif(cormod$estimate,5)),", ",
                              paste0("p-value: ", signif(cormod$p.value,5))))) 
      
      ## plot residuals
-     print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars[i]), data = cost)) + 
+     print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost)) + 
              geom_point(aes(x = .fitted, y = .resid)) + 
-             labs(title = paste0("Residuals vs fitted: ",explanVars[i]))) # fitted vs residuals
+             labs(title = paste0("Residuals vs fitted: ",explanVars.quant[i]))) # fitted vs residuals
      
-    print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars[i]), data = cost)) + 
+    print(ggplot(data = lm(get(responseVars.quant[j])~get(explanVars.quant[i]), data = cost)) + 
             geom_histogram(aes(x = .resid)) + 
-            labs(title = paste0("Residuals histogram: ",explanVars[i])))       
+            labs(title = paste0("Residuals histogram: ",explanVars.quant[i])))       
      
 
     }
@@ -384,6 +389,8 @@ summary(FS)$coefficients
 
 ## Multicollinearity: variance inflation factors
 ```{r VIF}
+
+selectedVars <- unique(tstrsplit(selectedVars, "(?=[A-Za-z])(?<=[0-9])|(?=[0-9])(?<=[A-Za-z])", perl=TRUE)[[1]])
 
 LinEq <- paste0("outcosts2~",paste0(selectedVars, collapse = "+"))
 LinEq
@@ -455,31 +462,34 @@ kable(coefTable.uni)
 ## Table 2: coefficients
 ```{r table 2 coefficients}
 
-table2 <- bind_cols(coefTable.uni,coefTable)
-table2 <- as.data.frame(sapply(table2 %>% dplyr::select(-variable,-variable1), function(x) signif(x, 5)))
+table2 <- coefTable
+  # bind_cols(coefTable.uni,coefTable)
+# table2 <- as.data.frame(sapply(table2 %>% dplyr::select(-variable,-variable1), function(x) signif(x, 5)))
 kable(table2)
 
 
 ## if p < 0.0001
-table2[,c("pvalue","pvalue1")] <- sapply(table2[,c("pvalue","pvalue1")], function(x) ifelse(x < 0.0001, "< 0.0001",x))
+table2[,c("pvalue")] <- sapply(table2[,c("pvalue")], function(x) ifelse(x < 0.0001, "< 0.0001",signif(x,5)))
 
 
 ## Create vector rownames and extract labels
-variableNames <- selectedVars
-
-variableNameLabels <- vector(length = length(variableNames))
-
-for(y in 1:length(variableNameLabels)) {
-  
-  variableNameLabels[y] <- labelled::var_label(cost[,variableNames[y]])
-}
+# variableNames <- selectedVars
+# 
+# variableNameLabels <- vector(length = length(variableNames))
+# 
+# for(y in 1:length(variableNameLabels)) {
+#   
+#   variableNameLabels[y] <- labelled::var_label(cost[,variableNames[y]])
+# }
 
 
 ## Collapse 95% CIs into cell with hazard ratios
+# 
+# table2 <- table2 %>% mutate(variable = variableNameLabels, 
+#                        Coef1 = paste0(coefficient," (",LCI,",",UCI,")"), 
+#                        Coef2 = paste0(coefficient1," (",LCI1,",",UCI1,")")) %>% dplyr::select(variable,Coef1,pvalue,Coef2,pvalue1)
 
-table2 <- table2 %>% mutate(variable = variableNameLabels, 
-                       Coef1 = paste0(coefficient," (",LCI,",",UCI,")"), 
-                       Coef2 = paste0(coefficient1," (",LCI1,",",UCI1,")")) %>% dplyr::select(variable,Coef1,pvalue,Coef2,pvalue1)
+table2 <- table2 %>% mutate(variable = variable, coefficient = paste0(signif(coefficient,5),"(",signif(LCI,5),",",signif(UCI,5),")"), pvalue = pvalue)
 
 colnames(table2) <- c("Variable", "Unadjusted Coefficient (95% CI)","p-value","Adjusted Coefficient (95% CI)","p-value")
 
@@ -495,17 +505,31 @@ tab_df(table2, file = paste0(analysisDir,"Table2.doc"))
 ```{r effect modification}
 
 ## Evaluate for effect modification by adding an interaction term
-cost <- cost %>% mutate(chdep = charlson*depcat)
-labelled::var_label(cost$chdep) <- 'Charlson*Depression Category Interaction Term' # label this new term
+# cost <- cost %>% mutate(chdep = charlson*depcat)
+# labelled::var_label(cost$chdep) <- 'Charlson*Depression Category Interaction Term' # label this new term
 
 ## Retrain the model with the new interaction term
-LinEq <- paste0("outcosts2~",paste0(c(selectedVars[!selectedVars %in% c("ssi")],"chdep"), collapse = "+"))
+LinEq <- paste0("outcosts2~",paste0(c(selectedVars), collapse = "+"),"+depcat*charlson")
 LinEq
 
 LinMod <- lm(as.formula(LinEq), data = cost)
 summary(LinMod)
 
 vif(LinMod)
+
+## Now remove SSI
+
+## Retrain the model with the new interaction term
+LinEq <- paste0("outcosts2~",paste0(c(selectedVars[!selectedVars %in% c("ssi")]), collapse = "+"),"+depcat*charlson")
+LinEq
+
+LinMod <- lm(as.formula(LinEq), data = cost)
+summary(LinMod)
+
+vif(LinMod)
+
+
+
 
 ```
 
