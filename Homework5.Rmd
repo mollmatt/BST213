@@ -226,6 +226,24 @@ In this section, I will use boxplots and t-tests to compare the continuous expla
 
 ```{r visualize boxplots, eval = T}
 
+## Before using t-test, need to figure out whether to use equal or unqual variance.
+
+for(d in 1:length(explanVars.quant[!explanVars.quant %in% c(nonParamVars)])) {
+  
+  print(" ")
+  print(paste0("Variable:  ",explanVars.quant[!explanVars.quant %in% c(nonParamVars)][d]))
+  print(" ")
+  
+  f.test <- 
+  var.test(icu_quant.alive[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][d]], 
+                  
+              icu_quant.dead[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][d]], 
+              alternative = "two.sided")
+  
+  print(f.test)
+
+}
+
 
 for(i in 1:length(responseVars)) {
   
@@ -239,7 +257,9 @@ for(i in 1:length(responseVars)) {
      diff <- 
        t.test(icu_quant.alive[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]], 
                   
-              icu_quant.dead[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]])
+              icu_quant.dead[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]], 
+              alternative = "two.sided", var.equal = 
+                ifelse(explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j] == "sys",FALSE,TRUE))
      
      print(paste0("p-value: ", signif(diff$p.value,5)))
      
