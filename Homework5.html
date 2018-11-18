@@ -282,7 +282,6 @@ library(epiR)</code></pre>
 ## TMB was built with Matrix version 1.2.12
 ## Current Matrix version is 1.2.13
 ## Please re-install 'TMB' from source using install.packages('TMB', type = 'source') or ask CRAN for a binary version of 'TMB' matching CRAN's 'Matrix' package</code></pre>
-<pre><code>## Install package &quot;strengejacke&quot; from GitHub (`devtools::install_github(&quot;strengejacke/strengejacke&quot;)`) to load all sj-packages at once!</code></pre>
 <pre class="r"><code>library(stargazer)</code></pre>
 <pre><code>## 
 ## Please cite as:</code></pre>
@@ -828,7 +827,16 @@ responseVars.bin</code></pre>
     
     print(epitable)
     
+    print(&quot; &quot;)
 
+    ## Fisher test
+    
+    print(
+    fisher.test(x = as.data.frame(icu)[,explanVars.bin2[o]], 
+            y = as.data.frame(icu)[,responseVars.bin[n]], 
+            alternative = &quot;two.sided&quot;, conf.int = TRUE)
+    )
+    
     }
   
 }</code></pre>
@@ -860,6 +868,19 @@ responseVars.bin</code></pre>
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
 ## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.8558
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.5077256 2.3803040
+## sample estimates:
+## odds ratio 
+##   1.110519 
+## 
+## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: service&quot;
 ## [1] &quot;Outcome: status&quot;
@@ -886,6 +907,19 @@ responseVars.bin</code></pre>
 ##  X2 test statistic: 6.879 p-value: 0.009
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
+## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.01254
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.1741067 0.8415712
+## sample estimates:
+## odds ratio 
+##  0.3897941 
+## 
 ## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: cancer&quot;
@@ -914,6 +948,19 @@ responseVars.bin</code></pre>
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
 ## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 1
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.229325 3.362246
+## sample estimates:
+## odds ratio 
+##          1 
+## 
+## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: renal&quot;
 ## [1] &quot;Outcome: status&quot;
@@ -940,6 +987,19 @@ responseVars.bin</code></pre>
 ##  X2 test statistic: 6.412 p-value: 0.011
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
+## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.02916
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##   1.081389 10.043287
+## sample estimates:
+## odds ratio 
+##   3.359748 
+## 
 ## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: inf&quot;
@@ -968,6 +1028,19 @@ responseVars.bin</code></pre>
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
 ## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.0122
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  1.162942 5.449561
+## sample estimates:
+## odds ratio 
+##   2.488093 
+## 
+## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: cpr&quot;
 ## [1] &quot;Outcome: status&quot;
@@ -994,6 +1067,19 @@ responseVars.bin</code></pre>
 ##  X2 test statistic: 9.955 p-value: 0.002
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
+## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.005276
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##   1.445099 20.761246
+## sample estimates:
+## odds ratio 
+##   5.380096 
+## 
 ## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: prevad&quot;
@@ -1022,6 +1108,19 @@ responseVars.bin</code></pre>
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
 ## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.624
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.4208228 3.3773282
+## sample estimates:
+## odds ratio 
+##   1.261955 
+## 
+## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: type&quot;
 ## [1] &quot;Outcome: status&quot;
@@ -1048,6 +1147,19 @@ responseVars.bin</code></pre>
 ##  X2 test statistic: 11.866 p-value: &lt; 0.001
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
+## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.0002432
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##   2.134956 78.343235
+## sample estimates:
+## odds ratio 
+##   8.827488 
+## 
 ## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: frac&quot;
@@ -1076,6 +1188,19 @@ responseVars.bin</code></pre>
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
 ## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 1
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.1723669 3.9742112
+## sample estimates:
+## odds ratio 
+##          1 
+## 
+## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: p02&quot;
 ## [1] &quot;Outcome: status&quot;
@@ -1102,6 +1227,19 @@ responseVars.bin</code></pre>
 ##  X2 test statistic: 1.376 p-value: 0.241
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
+## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.3237
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.4927241 6.5074978
+## sample estimates:
+## odds ratio 
+##   1.927707 
+## 
 ## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: ph&quot;
@@ -1130,6 +1268,19 @@ responseVars.bin</code></pre>
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
 ## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.2974
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.3955715 7.1291674
+## sample estimates:
+## odds ratio 
+##   1.857374 
+## 
+## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: pc02&quot;
 ## [1] &quot;Outcome: status&quot;
@@ -1156,6 +1307,19 @@ responseVars.bin</code></pre>
 ##  X2 test statistic: 0 p-value: 1
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
+## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 1
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.229325 3.362246
+## sample estimates:
+## odds ratio 
+##          1 
+## 
 ## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: bic&quot;
@@ -1184,6 +1348,19 @@ responseVars.bin</code></pre>
 ##  Wald confidence limits
 ##  * Outcomes per 100 population units 
 ## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.1867
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##  0.5373219 7.3880852
+## sample estimates:
+## odds ratio 
+##   2.133151 
+## 
+## [1] &quot; &quot;
 ## [1] &quot; &quot;
 ## [1] &quot;Exposure: crit&quot;
 ## [1] &quot;Outcome: status&quot;
@@ -1209,7 +1386,19 @@ responseVars.bin</code></pre>
 ## -------------------------------------------------------------------
 ##  X2 test statistic: 5.921 p-value: 0.015
 ##  Wald confidence limits
-##  * Outcomes per 100 population units</code></pre>
+##  * Outcomes per 100 population units 
+## [1] &quot; &quot;
+## 
+##  Fisher's Exact Test for Count Data
+## 
+## data:  as.data.frame(icu)[, explanVars.bin2[o]] and as.data.frame(icu)[, responseVars.bin[n]]
+## p-value = 0.02914
+## alternative hypothesis: true odds ratio is not equal to 1
+## 95 percent confidence interval:
+##   0.9536263 20.1785256
+## sample estimates:
+## odds ratio 
+##   4.383764</code></pre>
 </div>
 <div id="binary-x-categorical" class="section level2">
 <h2>Binary X Categorical</h2>

@@ -352,7 +352,16 @@ for (n in 1:length(responseVars.bin)) {
     
     print(epitable)
     
+    print(" ")
 
+    ## Fisher test
+    
+    print(
+    fisher.test(x = as.data.frame(icu)[,explanVars.bin2[o]], 
+            y = as.data.frame(icu)[,responseVars.bin[n]], 
+            alternative = "two.sided", conf.int = TRUE)
+    )
+    
     }
   
 }
