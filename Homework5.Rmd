@@ -220,92 +220,26 @@ nonParamVars <- c('age')
 
 <BR>
 
-## Scatterplots and correlation coefficients
-```{r scatterpolots and correlation coefficients, eval=FALSE}
-
-## Scatterplots and correlation coefficients
-
-for (i in 1:length(explanVars.quant[!explanVars.quant %in% c(nonParamVars)])) {
-  
-  for (j in 1:length(responseVars)) {
- 
-     print(paste0("Explanatory var: ", explanVars.quant[!explanVars.quant %in% 
-                                                          c(nonParamVars)][i]))
-     print(paste0("Response var: ", responseVars[j]))
-     
-     cormod <- cor.test(as.data.frame(icu)[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][i]],
-                                    
-                    as.data.frame(icu)[,responseVars[j]], 
-                        method = "pearson")
-     
-     print(paste0("Pearson Correlation Coefficient: ", signif(cormod$estimate,5)))
-     print(paste0("p-value: ", signif(cormod$p.value,5)))
-     
-     print(" ")
-     print(" ")
-  
-     print(ggplot(data = icu) + 
-             geom_point(mapping = 
-                  aes(x = get(explanVars.quant[!explanVars.quant %in% 
-                                                 c(nonParamVars)][i]), 
-                      y = get(responseVars[j]))) +
-             geom_smooth(mapping = 
-                  aes(x = get(explanVars.quant[!explanVars.quant %in% 
-                                                 c(nonParamVars)][i]), 
-                      y = get(responseVars[j])), method = 'lm') +
-             xlab(explanVars.quant[!explanVars.quant %in% c(nonParamVars)][i]) + 
-             ylab(responseVars[j]) +
-               labs(subtitle =
-                      paste0(paste0("r-value: ", signif(cormod$estimate,5)),", ",
-                             paste0("p-value: ", signif(cormod$p.value,5))))) 
-     
-     ## plot residuals
-     print(ggplot(data = 
-                    lm(get(responseVars[j])~
-                         get(explanVars.quant[!explanVars.quant %in% 
-                                                c(nonParamVars)][i]), data = icu)) + 
-             geom_point(aes(x = .fitted, y = .resid)) + 
-             labs(title = 
-                    paste0("Residuals vs fitted: ", 
-                           explanVars.quant[!explanVars.quant %in% 
-                                              c(nonParamVars)][i]))) # fitted vs residuals
-     
-    print(ggplot(data = 
-                   lm(get(responseVars[j])~
-                        get(explanVars.quant[!explanVars.quant %in% 
-                                               c(nonParamVars)][i]), data = icu)) + 
-            geom_histogram(aes(x = .resid)) + 
-            labs(title = paste0("Residuals histogram: ", 
-                                explanVars.quant[!explanVars.quant %in% 
-                                                   c(nonParamVars)][i])))       
-     
-
-    }
-}
-
-
-
-```
-
-
 ## Binary vs continuous
-```{r visualize boxplots, eval = F}
 
-for(i in 1:length(explanVars.bin[!explanVars.bin %in% covars])) {
+In this section, I will use boxplots and t-tests to compare the continuous explanatory variables stratified by the binary outcome, vital_status.
+
+```{r visualize boxplots, eval = T}
+
+
+for(i in 1:length(responseVars)) {
   
-  for(j in 1:length(responseVars)) {
+  for(j in 1:length(explanVars.quant[!explanVars.quant %in% c(nonParamVars)])) {
     
-     print(paste0("Explanatory var: ", explanVars.bin[!explanVars.bin %in% covars][i]))
-     print(paste0("Response var: ", responseVars[j]))
+    ## First do parametric testing for normally distributed variables
+    
+     print(paste0("Response var: ", responseVars[i]))
+     print(paste0("Explan var: ", explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]))
      
      diff <- 
-       t.test(as.data.frame(p2dMortLim)[which(p2dMortLim[, 
-                  explanVars.bin[!explanVars.bin %in% 
-                  covars][i]] == 0),responseVars[j]], 
+       t.test(icu_quant.alive[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]], 
                   
-                  as.data.frame(p2dMortLim)[which(p2dMortLim[, 
-                      explanVars.bin[!explanVars.bin %in% 
-                                       covars][i]] == 1),responseVars[j]])
+              icu_quant.dead[,explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]])
      
      print(paste0("p-value: ", signif(diff$p.value,5)))
      
@@ -316,105 +250,125 @@ for(i in 1:length(explanVars.bin[!explanVars.bin %in% covars])) {
      print(" ")
      
        
-        print(ggplot(data = p2dMortLim, mapping = aes(
-          x = get(explanVars.bin[!explanVars.bin %in% covars][i]),
-          y = get(responseVars[j]), 
-          group = get(explanVars.bin[!explanVars.bin %in% covars][i]))) +
+        print(ggplot(data = icu, mapping = aes(
+          x = get(responseVars[i]),
+          y = get(explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]), 
+          group = get(responseVars[i]))) +
           geom_boxplot() +
-          xlab(explanVars.bin[!explanVars.bin %in% covars][i]) +
-          ylab(responseVars[j]) +
+          xlab(responseVars[i]) +
+          ylab(explanVars.quant[!explanVars.quant %in% c(nonParamVars)][j]) +
           labs(subtitle = paste0("p-value: ", signif(diff$p.value,5),", ", paste0("mean x: ",
                signif(diff$estimate[1], 5)),", ", paste0("mean y: ", signif(diff$estimate[2], 5)))))
     
+       
+  
+        }
+  
+   ## Do non-parametric testing for non-normal variables
+        for(k in 1:length(nonParamVars)) {
+ 
+          print(paste0("Response var: ", responseVars[i]))
+          print(paste0("Explan var: ", nonParamVars[k]))
+     
+          diff <- wilcox.test(icu_quant.alive[,nonParamVars[k]], 
+                              icu_quant.dead[,nonParamVars[k]])
+     
+     
+          print(paste0("p-value: ", signif(diff$p.value,5)))
+     
+     
+          print(" ")
+          print(" ")
+          print(" ")
+          print(" ")
+          print(" ")
+     
+       
+          print(ggplot(data = icu, mapping = aes(
+          x = get(responseVars[i]),
+          y = get(nonParamVars[k]), 
+          group = get(responseVars[i]))) +
+          geom_boxplot() +
+          xlab(responseVars[i]) +
+          ylab(nonParamVars[k]) +
+          labs(subtitle = paste0("p-value: ", signif(diff$p.value,5))))
 
+        }
   }
-}
 
 
 
 ```
 
+## Binary X Binary
+```{r binary X binary}
 
-## Continuous vs Categorical boxplots
-```{r categorical boxplots, eval = F}
+## What are possible binary exposures?
+explanVars.bin
 
-p2dMortLim <- tbl_df(p2dMortLim)
+explanVars.bin2 <- explanVars.bin 
 
-p2dMortLim_copd <- as.data.frame(p2dMortLim %>% filter(finalGold_P2 > -1))
+## What are binary outcomes of interest?
+responseVars.bin
 
-## Continuous explanatory vs categorical outcome
-
-for(i in 1:length(explanVars.quant[!explanVars.quant %in% covars])) {
+for (n in 1:length(responseVars.bin)) {
   
-  for(j in 1:length(responseVars.cat[!responseVars.cat %in% c(responseVars.bin,explanVars.bin)])) {
+  for (o in 1:length(explanVars.bin2)) {
     
-     print(paste0("Explanatory var: ", explanVars.quant[!explanVars.quant %in% covars][i]))
-     print(paste0("Response var: ", responseVars.cat[!responseVars.cat %in% c(responseVars.bin,explanVars.bin)][j]))
+    exposureframe <- na.omit(as.data.frame(icu[,c(explanVars.bin2[o],responseVars.bin[n])]))
+    
+    exposuretable <- table(exposureframe[,explanVars.bin2[o]], exposureframe[,responseVars.bin[n]])
+    print(" ")
+    print(" ")
+    print(paste0("Exposure: ", explanVars.bin2[o]))
+    print(paste0("Outcome: ", responseVars.bin[n]))
+    print(" ")
+    print(" ")
+ 
+      
+    epitable <-  epi.2by2(dat = exposuretable, method = "cross.sectional",
+          conf.level = 0.95, units = 100, homogeneity = "breslow.day",
+         outcome = "as.columns")
+    
+    print(epitable)
+    
 
-     anovaresult <- aov(as.formula(paste0(explanVars.quant[!explanVars.quant %in% covars][i],"~",responseVars.cat[!responseVars.cat %in% c(responseVars.bin,explanVars.bin)][j])), data = p2dMortLim_copd)
-     
-     print(" ")
-     print(" ")
-     print(" ")
-     print(" ")
-     print(" ")
-     
-     if(summary(anovaresult)[[1]][["Pr(>F)"]][[1]] < 0.05) {
-       
-        print(ggplot(data = p2dMortLim_copd) + geom_boxplot(mapping = aes(
-          x =get(responseVars.cat[!responseVars.cat %in% c(responseVars.bin,explanVars.bin)][j]), 
-          y = get(explanVars.quant[!explanVars.quant %in% covars][i]), 
-          group =  get(responseVars.cat[!responseVars.cat %in% c(responseVars.bin,explanVars.bin)][j]))) +
-                ylab(explanVars.quant[!explanVars.quant %in% covars][i]) +
-                xlab(responseVars.cat[!responseVars.cat %in% c(responseVars.bin,explanVars.bin)][j]) +
-                labs(subtitle = paste0("p-value: ",
-                                       signif(summary(anovaresult)[[1]][["Pr(>F)"]][[1]],5))))
+    }
+  
+}
 
-          
-       
-     }
+```
+
+## Binary X Categorical
+```{r binary X categorical}
+
+for(i in 1:length(responseVars.bin)) {
+  
+  for (j in 1:length(explanVars.cat)) {
+    
+    print(" ")
+    print(" ")
+    
+    print(paste0("Explan Var:  ",explanVars.cat[j]))
+    print(paste0("Response Var:  ",responseVars.bin[i]))
+    
+    print(" ")
+    print(" ")
+    
+    print(
+    fisher.test(x = as.data.frame(icu)[,explanVars.cat[j]], 
+            y = as.data.frame(icu)[,responseVars.bin[i]], 
+            alternative = "two.sided", conf.int = TRUE)
+    )
+
   }
 }
 
 
-
-## Categorical versions of explanatory variables vs continuous response variables
-
-
-for(i in 1:length(responseVars[!responseVars %in% covars])) {
-  
-  for(j in 1:length(explanVars.cat[!explanVars.cat %in% c(responseVars.bin,explanVars.bin,covars)])) {
-    
-     print(paste0("Explanatory var: ", responseVars[!responseVars %in% covars][i]))
-     print(paste0("Response var: ", explanVars.cat[!explanVars.cat %in% c(responseVars.bin,explanVars.bin, covars)][j]))
-
-     anovaresult <- aov(as.formula(paste0(responseVars[!responseVars %in% covars][i],"~",explanVars.cat[!explanVars.cat %in% c(responseVars.bin,explanVars.bin, covars)][j])), data = p2dMortLim_copd)
-     
-     print(" ")
-     print(" ")
-     print(" ")
-     print(" ")
-     print(" ")
-     
-     if(summary(anovaresult)[[1]][["Pr(>F)"]][[1]] < 0.05) {
-       
-        print(ggplot(data = p2dMortLim_copd) + geom_boxplot(mapping = aes(
-          x =get(explanVars.cat[!explanVars.cat %in% c(responseVars.bin,explanVars.bin, covars)][j]), 
-          y = get(responseVars[!responseVars %in% covars][i]), 
-          group =  get(explanVars.cat[!explanVars.cat %in% c(responseVars.bin,explanVars.bin, covars)][j]))) +
-                ylab(responseVars[!responseVars %in% covars][i]) +
-                xlab(explanVars.cat[!explanVars.cat %in% c(responseVars.bin,explanVars.bin, covars)][j]) +
-                labs(subtitle = paste0("p-value: ",
-                                       signif(summary(anovaresult)[[1]][["Pr(>F)"]][[1]],5))))
-
-          
-       
-     }
-  }
-}
 
 
 ```
+
 
 
 ## Session Info
