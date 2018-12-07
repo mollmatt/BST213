@@ -1,0 +1,344 @@
+---
+title: "BST 213 Homework 6"
+author: "Matthew Moll"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+date: `r Sys.Date()`
+
+
+
+## R setup
+```{r setup}
+
+
+knitr::opts_chunk$set(echo = TRUE, fig.width = 6, fig.height = 6)
+
+library(tidyverse)
+library(data.table)
+library(knitr)
+library(readxl)
+library(moments)
+library(epiR)
+library(e1071)
+library(lsmeans)
+library(lmSupport)
+library(ppcor)
+library(tableone)
+library(sjPlot)
+library(stargazer)
+library(car)
+library(leaps)
+
+```
+
+## Load data
+```{r load data}
+
+rm(list = ls())
+
+## define directory
+analysisDir <- '/Users/matthewmoll/Documents/Fellowship/MPH/Fall2018/BST213_regression/homework/'
+  
+## Read in data
+icu <- read_excel("/Users/matthewmoll/Documents/Fellowship/MPH/Fall2018/BST213_regression/homework/icu-2.xls")
+
+```
+
+## Data structure
+```{r data structure}
+
+head(icu)
+str(icu)
+sapply(icu, summary)
+
+
+```
+
+## Define variables
+
+For this homework assignment, we are assigned the task of logistic regression for age (continuous), renal failure (binary), and race (categorical) for the outcome status. 
+
+<BR>
+
+```{r define variables}
+
+
+## Define response variables
+responseVars <- c('status')
+responseVars
+
+## Define explanatory variables
+explanVars <- names(icu)[grep(paste0(c("age","renal","race"), collapse = "|"), names(icu), ignore.case = T)]
+explanVars
+
+
+## Variables to remove
+removevars <- names(icu)[!names(icu) %in% c(explanVars,'status')]
+
+## List of quantitative variables
+quantVars <- names(icu[!names(icu) %in% removevars &
+                                  sapply(icu, function(x)
+                                      length(levels(as.factor(x)))>7)])
+quantVars
+
+
+## List of binary variables
+binVars <- names(icu[!names(icu) %in% removevars &
+                                sapply(icu, function(x)
+                                    length(levels(as.factor(x)))==2)])
+binVars
+
+## List of categorical variables
+
+catVars <- names(icu[!names(icu) %in% c(removevars,binVars) &
+                                sapply(icu, function(x)
+                                    length(levels(as.factor(x)))<=7 & length(levels(as.factor(x)))>1)])
+catVars
+
+
+## Get Intersection between quantVars and explanVars and responseVars
+explanVars.quant <- intersect(explanVars,quantVars)
+responseVars.quant <- intersect(responseVars,quantVars)
+
+## Get intersection between categorical and binary variables with explanatory and response vars
+explanVars.cat <- intersect(explanVars,catVars)
+explanVars.cat <- explanVars.cat[!explanVars.cat %in% c(binVars)]
+
+responseVars.cat <- intersect(responseVars, catVars)
+responseVars.cat <- responseVars.cat[!responseVars.cat %in% c(binVars)]
+
+
+## Get binary explanatory and response variables
+explanVars.bin <- intersect(explanVars, binVars)
+responseVars.bin <- intersect(responseVars, binVars)
+
+## View data ranges
+str(icu)
+sapply(icu, summary)
+
+## turn binary and category variables into factors
+varsToFactor <- c(catVars, binVars) 
+
+icu[,varsToFactor] <- lapply(icu[,varsToFactor],function(x) as.factor(x))
+
+## define race category 1 (white) as the reference group
+icu$race <- relevel(icu$race, ref = "1")
+
+## For the sake of simplicity, create subset of icu for this analysis
+icu <- icu %>% dplyr::select(responseVars,explanVars)
+
+
+```
+
+<BR>
+
+## Normality assessment
+```{r normality assessment}
+
+icu_quant <- as.data.frame(icu %>% dplyr::select(quantVars))
+
+
+normalityfun <- function(dataset) {
+  require(moments)
+  require(e1071)
+  
+  print(paste0("Summary Statistics: ", names(dataset)[i]))
+  print(paste0("Mean: ", mean(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Standard Deviation: ",sd(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Median: ", median(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Skewness: ", skewness(as.numeric(dataset[,i]), na.rm = T)))
+  print(paste0("Kurtosis: ", e1071::kurtosis(as.numeric(dataset[,i]), type = 2)))
+  print(paste0("Shapiro-Wilk Test: ", shapiro.test(as.numeric(dataset[,i]))$p.value))
+  print(" ")
+  print(" ")
+  
+  qqnorm(as.numeric(dataset[,i]), main = paste0("Normal Q-Q plot: ",names(dataset)[i]))
+  qqline(as.numeric(dataset[,i]), col = 2)
+  
+  
+}
+
+
+## Assess normality for continuous variables without stratifying for status
+
+for(i in 1:length(quantVars)) {
+  
+  ## For alive subjects
+    print(ggplot() + 
+            geom_histogram(data = icu_quant, fill = "blue", alpha = 0.5, mapping = 
+                             aes(x = get(quantVars[i]))) +
+                xlab(quantVars[i]) + labs(title = paste0(quantVars[i]))
+    
+          )
+  
+    normalityfun(icu_quant)
+  
+}
+
+
+## Now assess normality within groups defined by vital status
+
+icu_quant.alive <- icu %>% filter(status == 0) %>% dplyr::select(quantVars) %>% as.data.frame()
+icu_quant.dead <- icu %>% filter(status == 1) %>% dplyr::select(quantVars) %>% as.data.frame()
+
+for(i in 1:length(quantVars)) {
+  
+  ## For alive subjects
+    print(ggplot() + 
+            geom_histogram(data = icu_quant.alive, 
+                           fill = "blue", alpha = 0.5, mapping = 
+                             aes(x = get(quantVars[i]))) +
+                xlab(quantVars[i]) + labs(title = paste0("Alive:  ",quantVars[i]))
+    
+          )
+  
+    normalityfun(icu_quant.alive)
+
+
+    ## For dead subjects
+    
+     print(ggplot() + 
+            geom_histogram(data = icu_quant.dead, 
+                           fill = "blue", alpha = 0.5, mapping = 
+                             aes(x = get(quantVars[i]))) +
+                xlab(quantVars[i]) + labs(title = paste0("Dead:  ",quantVars[i]))
+    
+          )
+  
+    normalityfun(icu_quant.dead)
+  
+}
+
+
+
+```
+
+<BR>
+
+None of these are normally distributed, but I will invoke central limit theorem for sys and heart. Age is not normally distributed, so I will use nonparametric testing for age.
+
+```{r}
+
+nonParamVars <- c('age')
+
+```
+
+<BR>
+
+## Convert continuous variable to categorical
+<BR>
+Age can be converted into a categorical variable, or we can add a squared term. I think for a reader, it is easier to conceptualize categories of age and their relationship to the outcome of death.
+<BR>
+
+```{r}
+
+## Split age into categories - will use 10 year increments
+agegroups <- seq(10,100,10)
+
+icu <- icu %>% mutate(agecat = ifelse(age >= agegroups[1] & age < agegroups[2], 1, 
+                               ifelse(age >= agegroups[2] & age < agegroups[3], 2, 
+                                      ifelse(age >= agegroups[3] & age < agegroups[4], 3, 
+                                             ifelse(age >= agegroups[4] & age < agegroups[5], 4, 
+                                                    ifelse(age >= agegroups[5] & age < agegroups[6], 5,
+                                                           ifelse(age >= agegroups[6] & age < agegroups[7], 6,
+                                                                  ifelse(age >= agegroups[7] & age < agegroups[8], 7,
+                                                                      ifelse(age >= agegroups[8] & age < agegroups[9], 8, ifelse(age >= agegroups[9] & age < agegroups[10], 9, NA))))))))))
+
+## Make a factor
+icu$agecat <- as.factor(icu$agecat)
+
+## add to explanVars
+
+explanVars <- c(explanVars,'agecat')
+
+```
+
+
+## Univariate logistic regression
+```{r}
+
+for(i in 1:length(explanVars[!explanVars %in% c('age')])) {
+  
+  print(paste0("Variable:  ",explanVars[!explanVars %in% c('age')][i]))
+  print(" ")
+  
+  logMod <- paste0("status~",explanVars[!explanVars %in% c('age')][i])
+
+  logReg <- glm(as.formula(logMod), data = icu, family = "binomial")
+
+  print(summary(logReg))
+  
+  ## Calculate odds ratios and 95% CI
+
+  for(j in 2:length(summary(logReg)$coefficients[,1])) {
+    
+    print(" ")
+    print(paste0("Odds ratio for ", 
+                 names(summary(logReg)$coefficients[,1])[j],":  ", 
+                 signif(exp(summary(logReg)$coefficients[j,1]),5), " (", 
+                 signif((exp(summary(logReg)$coefficients[j,1]) - 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 ", ", 
+                 signif((exp(summary(logReg)$coefficients[j,1]) + 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 ")"))
+    # print(" ")
+    # print(paste0("LCI for ", 
+    #              names(summary(logReg)$coefficients[,1])[j],":  ", 
+    #              signif((exp(summary(logReg)$coefficients[j,1]) - 1.96*summary(logReg)$coefficients[j,2]),5)))
+    # print(" ")
+    # print(paste0("UCI for ", 
+    #              names(summary(logReg)$coefficients[,1])[j],":  ", 
+    #              signif((exp(summary(logReg)$coefficients[j,1]) + 1.96*summary(logReg)$coefficients[j,2]),5)))
+    
+  }
+  print(" ")
+}
+
+
+```
+
+## Multivariable logistic regression
+```{r}
+
+
+logMod <- paste0("status~",paste0(explanVars[!explanVars %in% c('age')], collapse = "+"))
+
+logReg <- glm(as.formula(logMod), data = icu, family = "binomial")
+
+print(summary(logReg))
+
+for(j in 2:length(summary(logReg)$coefficients[,1])) {
+    
+    print(" ")
+    print(paste0("Odds ratio for ", 
+                 names(summary(logReg)$coefficients[,1])[j],":  ", 
+                 signif(exp(summary(logReg)$coefficients[j,1]),5), " (", 
+                 signif((exp(summary(logReg)$coefficients[j,1]) - 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 ", ", 
+                 signif((exp(summary(logReg)$coefficients[j,1]) + 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 ")"))
+    # print(" ")
+    # print(paste0("LCI for ", 
+    #              names(summary(logReg)$coefficients[,1])[j],":  ", 
+    #              signif((exp(summary(logReg)$coefficients[j,1]) - 1.96*summary(logReg)$coefficients[j,2]),5)))
+    # print(" ")
+    # print(paste0("UCI for ", 
+    #              names(summary(logReg)$coefficients[,1])[j],":  ", 
+    #              signif((exp(summary(logReg)$coefficients[j,1]) + 1.96*summary(logReg)$coefficients[j,2]),5)))
+    
+  }
+  
+print(" ")
+
+```
+
+
+## Session Info
+```{r session info}
+
+sessionInfo()
+
+```
