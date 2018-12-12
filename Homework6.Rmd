@@ -280,9 +280,9 @@ for(i in 1:length(explanVars[!explanVars %in% c('age')])) {
     print(paste0("Odds ratio for ", 
                  names(summary(logReg)$coefficients[,1])[j],":  ", 
                  signif(exp(summary(logReg)$coefficients[j,1]),5), " (", 
-                 signif((exp(summary(logReg)$coefficients[j,1]) - 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 signif((exp(summary(logReg)$coefficients[j,1] - 1.96*summary(logReg)$coefficients[j,2])),5), 
                  ", ", 
-                 signif((exp(summary(logReg)$coefficients[j,1]) + 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 signif((exp(summary(logReg)$coefficients[j,1] + 1.96*summary(logReg)$coefficients[j,2])),5), 
                  ")"))
     # print(" ")
     # print(paste0("LCI for ", 
@@ -316,9 +316,9 @@ for(j in 2:length(summary(logReg)$coefficients[,1])) {
     print(paste0("Odds ratio for ", 
                  names(summary(logReg)$coefficients[,1])[j],":  ", 
                  signif(exp(summary(logReg)$coefficients[j,1]),5), " (", 
-                 signif((exp(summary(logReg)$coefficients[j,1]) - 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 signif((exp(summary(logReg)$coefficients[j,1] - 1.96*summary(logReg)$coefficients[j,2])),5), 
                  ", ", 
-                 signif((exp(summary(logReg)$coefficients[j,1]) + 1.96*summary(logReg)$coefficients[j,2]),5), 
+                 signif((exp(summary(logReg)$coefficients[j,1] + 1.96*summary(logReg)$coefficients[j,2])),5), 
                  ")"))
     # print(" ")
     # print(paste0("LCI for ", 
